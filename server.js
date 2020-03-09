@@ -5,9 +5,8 @@ const morgan = require('morgan');
 const client = require('./lib/client');
 client.connect(); // initiate database connection
 
-const ensureAuth = require('./lib/auth/ensure-auth');
-const createAuthRoutes = require('./lib/auth/create-auth-routes');
-
+const ensureAuth = require('./auth/ensure-auth.js');
+const createAuthRoutes = require('./auth/create-auth-routes.js');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -15,40 +14,48 @@ app.use(morgan('dev')); // http logging
 app.use(cors());//enable cors request
 app.use(express.static('public'));//server files from pubic folder
 app.use(express.json());//enable reading incoming json file
-app.use(express.urlencoded({ extended:true}));
-
+app.use(express.urlencoded({ extended:true }));
 
 
 const authRoutes = createAuthRoutes({
-    selectUser(username) {
+    selectUser(email) {
         return client.query(`
-            SELECT id, username, hash, display_name as "displayName" 
-            FROM users
-            WHERE username = $1;
+        SELECT id, email, hash, display_name as "displayName" 
+        FROM users
+        WHERE email = $1;
         `,
-            [username]
+        [email]
         ).then(result => result.rows[0]);
     },
     insertUser(user, hash) {
         console.log(user);
         return client.query(`
-            INSERT into users (username, hash, display_name)
-            VALUES ($1, $2, $3)
-            RETURNING id, username, display_name as "displayName";
+        INSERT into users (email, hash, display_name)
+        VALUES ($1, $2, $3)
+        RETURNING id, email, display_name as "displayName";
         `,
-            [user.username, hash, user.displayName]
+        [user.email, hash, user.displayName]
         ).then(result => result.rows[0]);
     }
 });
+
+app.use('/api/auth', authRoutes);
+app.use('/api', ensureAuth);
 
 app.get('/api/favorites', async(req, res) => {
 
     try {
         
-        const result = await client.query(`
-            SELECT * from list;
+        const myQuery = await client.query(`
+            SELECT * from favorites;
+            WHERE user_id=$1
         `);
-        res.json(result.rows);
+
+        const favorites = await client.query(myQuery, [req.userId]
+            
+        );
+
+        res.json(favorites.rows);
     }
     catch (err) {
         console.log(err);
@@ -58,18 +65,18 @@ app.get('/api/favorites', async(req, res) => {
     }
 });
 
-app.post('/api/favorites', async(req, res) => {
+app.post('/api/me/favorites', async(req, res) => {
 
     try {
 
-        console.log('|||||||', req.userId)
-        const result = await client.query(`
-            INSERT into list (task, complete, user_id)
-            VALUES ($1, false, $2)
+        console.log('|||||||', req.userId);
+        const newFav = await client.query(`
+            INSERT into favorites (/* insert values */ user_id)
+            VALUES ($1, $2, $3, $4, $5)
             returning *;
-        `, [req.body.task, req.userId],
+        `, [req.body.favs, req.userId],
         
-        res.json(result.rows[0]));
+        res.json(newFav.rows[0]));
     }
     catch (err) {
         console.log(err);
@@ -80,15 +87,15 @@ app.post('/api/favorites', async(req, res) => {
     }
 });
 
-app.put('/api/favorites/:id', async (req, res) => {
+app.put('/api/favorites/:id', async(req, res) => {
     
     try {
         const result = await client.query(`
-        update todos
+        update favs
         set complete=${req.body.complete}
         where id = ${req.params.id}
         returning *;
-        `),
+        `);
 
         res.json(result.rows[0]);
     }
@@ -100,7 +107,7 @@ app.put('/api/favorites/:id', async (req, res) => {
     }
 });
 
-app.delete('/list/:id', async (req, res) => {
+app.delete('/favorites/:id', async(req, res) => {
 
     try {
         const result = await client.query(`

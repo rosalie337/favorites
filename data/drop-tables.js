@@ -1,23 +1,25 @@
-const client = require('../lib/client');// <---- what is this component?
+const client = require('../lib/client');
 
-// async/await needs to run in a function
 run();
 
 async function run() {
 
     try {
-        await client.connect();
-
-        await client.query(`     
-            DROP TABLES IF EXIST favorites;
-            DROP TABLES IF EXIST users;
-            DROP TABLES IF EXIST list;      
+        // run a query to create tables
+        await client.query(`
+            DROP TABLE IF EXISTS favorites;
+            DROP TABLE IF EXISTS users;
         `);
+
+        console.log('drop tables complete');
     }
     catch (err) {
+        // problem? let's see the error...
         console.log(err);
     }
     finally {
+        // success or failure, need to close the db connection
         client.end();
     }
+
 }

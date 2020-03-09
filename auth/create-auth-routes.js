@@ -12,6 +12,7 @@ function getProfileWithToken(user) {
     };
 }
 
+
 module.exports = function createAuthRoutes(queries) {
     // eslint-disable-next-line new-cap
     const router = express.Router();
@@ -22,19 +23,19 @@ module.exports = function createAuthRoutes(queries) {
 
     router.post('/signup', (req, res) => {
         const { password, ...user } = req.body;
-        const username = user.username;
+        const email = user.email;
 
-        // username and password needs to exist
-        if (!username || !password) {
-            res.status(400).json({ error: 'user name and password required' });
+        // email and password needs to exist
+        if (!email || !password) {
+            res.status(400).json({ error: 'email and password required' });
             return;
         }
 
-        // username needs to not exist already
-        queries.selectUser(username)
+        // email needs to not exist already
+        queries.selectUser(email)
             .then(foundUser => {
                 if (foundUser) {
-                    res.status(400).json({ error: 'user name already exists' });
+                    res.status(400).json({ error: 'email already exists' });
                     return;
                 }
 
@@ -48,22 +49,22 @@ module.exports = function createAuthRoutes(queries) {
 
     router.post('/signin', (req, res) => {
         const body = req.body;
-        const username = body.username;
+        const email = body.email;
         const password = body.password;
 
-        // username and password needs to exist
-        if (!username || !password) {
-            res.status(400).json({ error: 'user name and password required' });
+        // email and password needs to exist
+        if (!email || !password) {
+            res.status(400).json({ error: 'email and password required' });
             return;
         }
 
-        queries.selectUser(username)
+        queries.selectUser(email)
             .then(user => {
-                // does username match one in db?
-                // #1 !user - if no user, then no match on a row for username
+                // does email match one in db?
+                // #1 !user - if no user, then no match on a row for email
                 // #2 !compareSync - provided password did not match hash from db
                 if (!user || !bcrypt.compareSync(password, user.hash)) {
-                    res.status(400).json({ error: 'user name or password incorrect' });
+                    res.status(400).json({ error: 'email or password incorrect' });
                     return;
                 }
 
